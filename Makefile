@@ -1,9 +1,9 @@
-APP        = MyRaycast
+APP        = Nexus
 BUNDLE     = build/$(APP).app
 IDENTITY   = Apple Development: hibarix@163.com (RWUNZF86ZA)
-BUNDLE_ID  = com.hibarix.myraycast
+BUNDLE_ID  = com.hibarix.nexus
 
-PLUGINS_DST = $(HOME)/Library/Application Support/MyRaycast/Plugins
+PLUGINS_DST = $(HOME)/Library/Application Support/Nexus/Plugins
 
 .PHONY: build bundle run clean test install-plugins
 

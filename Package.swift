@@ -2,20 +2,20 @@
 import PackageDescription
 
 let package = Package(
-    name: "MyRaycast",
+    name: "Nexus",
     // 15.2：SCScreenshotManager.captureImage(in:) 的最低要求
     platforms: [.macOS("15.2")],
     targets: [
         .executableTarget(
-            name: "MyRaycast",
+            name: "Nexus",
             swiftSettings: [
                 // 全模块默认 @MainActor（SE-0466）：本应用几乎全是 UI 与主线程系统 API
                 .defaultIsolation(MainActor.self)
             ]
         ),
         .testTarget(
-            name: "MyRaycastTests",
-            dependencies: ["MyRaycast"],
+            name: "NexusTests",
+            dependencies: ["Nexus"],
             swiftSettings: [
                 .defaultIsolation(MainActor.self)
             ]

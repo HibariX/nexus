@@ -2,14 +2,14 @@
 
 ## Project Structure & Module Organization
 
-MyRaycast is a Swift 6.2 macOS 15.2+ executable package. Application code lives in `Sources/MyRaycast/`: `App/` owns lifecycle and settings, `Core/` contains search and command abstractions, `UI/` contains shared AppKit/SwiftUI views, and feature code is grouped under `Providers/`, `Snip/`, `Todo/`, and `Plugins/`. Tests are in `Tests/MyRaycastTests/`. Bundle metadata and icons live in `Support/`; bundled external plugins live in `Plugins/<plugin-name>/`. Treat `.build/` and `build/` as generated output.
+Nexus is a Swift 6.2 macOS 15.2+ executable package. Application code lives in `Sources/Nexus/`: `App/` owns lifecycle and settings, `Core/` contains search and command abstractions, `UI/` contains shared AppKit/SwiftUI views, and feature code is grouped under `Providers/`, `Snip/`, `Todo/`, and `Plugins/`. Tests are in `Tests/NexusTests/`. Bundle metadata and icons live in `Support/`; bundled external plugins live in `Plugins/<plugin-name>/`. Treat `.build/` and `build/` as generated output.
 
 ## Build, Test, and Development Commands
 
 - `swift build` compiles a debug build for quick validation.
 - `make build` creates the release executable.
 - `make test` (or `swift test`) runs the complete test suite.
-- `make bundle` assembles and signs `build/MyRaycast.app` using the identity configured in `Makefile`.
+- `make bundle` assembles and signs `build/Nexus.app` using the identity configured in `Makefile`.
 - `make run` rebuilds the bundle and launches it through LaunchServices so macOS TCC permissions attach to the app, not Terminal.
 - `make install-plugins` copies demo plugins into Application Support for development.
 - `make clean` removes generated build directories.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""MyRaycast 随机密码插件：解析参数并用系统安全随机源生成密码。"""
+"""Nexus 随机密码插件：解析参数并用系统安全随机源生成密码。"""
 
 from __future__ import annotations
 
