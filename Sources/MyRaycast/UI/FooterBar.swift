@@ -5,10 +5,7 @@ struct FooterBar: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            Label("MyRaycast", systemImage: "command.circle.fill")
-                .font(CyberpunkTheme.monoFont(size: 12, weight: .medium))
-                .foregroundStyle(CyberpunkTheme.mutedText)
-                .labelStyle(.titleAndIcon)
+            CyberpunkBrandMark()
 
             Spacer()
 
@@ -28,6 +25,30 @@ struct FooterBar: View {
         .background(CyberpunkTheme.panelBackground.opacity(0.95))
         .overlay(alignment: .top) {
             Divider().overlay(CyberpunkTheme.border.opacity(0.55))
+        }
+    }
+}
+
+/// 赛博朋克品牌标识：霓虹六边形+瞄准镜 logo，配微 glitch 文字
+struct CyberpunkBrandMark: View {
+    var body: some View {
+        HStack(spacing: 7) {
+            ZStack {
+                Image(systemName: "hexagon")
+                    .font(.system(size: 15, weight: .regular))
+                    .foregroundStyle(CyberpunkTheme.matrix)
+                Image(systemName: "scope")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(CyberpunkTheme.matrixBright)
+            }
+            .shadow(color: CyberpunkTheme.matrix.opacity(0.6), radius: 4)
+
+            CyberpunkGlitchText(
+                text: "MyRaycast",
+                font: CyberpunkTheme.monoFont(size: 11, weight: .semibold),
+                glitching: true
+            )
+            .shadow(color: CyberpunkTheme.matrix.opacity(0.4), radius: 3)
         }
     }
 }

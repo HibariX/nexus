@@ -6,6 +6,12 @@ enum WorkbenchLayout {
     static let columns = 5
 }
 
+/// 导航方向：用于页面切换动效（push 前进 / pop 回退）
+enum NavDirection {
+    case push
+    case pop
+}
+
 @Observable
 final class SearchCoordinator {
     var query = "" {
@@ -24,6 +30,15 @@ final class SearchCoordinator {
     var selection: ResultItem.ID?
 
     var onDismiss: (() -> Void)?
+
+    // 面板显示计数：每次呼出递增，供 LauncherView 重播进场动效（面板复用，onAppear 只首次）
+    private(set) var panelShowCounter = 0
+    func notePanelShown() { panelShowCounter += 1 }
+
+    // 关机退场状态：PanelController 播 CR 动画期间为 true，动画结束后 clear
+    private(set) var isShuttingDown = false
+    func beginShutdown() { isShuttingDown = true }
+    func clearShutdown() { isShuttingDown = false }
 
     /// 插件页面的结果来源（AppDelegate 注入）；root 页不用
     weak var pluginHost: PluginHostProvider?
@@ -55,6 +70,7 @@ final class SearchCoordinator {
     private var stack: [Frame] = []
     private(set) var currentSource: PageSource = .root
     private(set) var pageTitle = ""            // 当前页名，root 为空
+    private(set) var navDirection: NavDirection = .push   // 供页面转场判断方向
     private var suppressSchedule = false        // 恢复快照/清空时抑制 didSet 触发搜索
 
     var canGoBack: Bool { !stack.isEmpty }
@@ -77,6 +93,15 @@ final class SearchCoordinator {
         return ""
     }
 
+    /// 当前页面身份 key：跨页切换（push/pop）时用它触发转场动画
+    var pageKey: String {
+        switch currentSource {
+        case .root: return "root"
+        case .plugin(let id, _): return "plugin:\(id)"
+        case .builtin(let id): return "builtin:\(id)"
+        }
+    }
+
     var searchPlaceholder: String {
         switch currentSource {
         case .root: return "搜索应用、算式，@ 唤起插件…"
@@ -87,6 +112,7 @@ final class SearchCoordinator {
 
     /// 压栈进入新页面：保存当前层，把搜索框设为 initialQuery（默认清空），拉取新页结果
     func push(source: PageSource, title: String, initialQuery: String = "") {
+        navDirection = .push
         stack.append(Frame(source: currentSource, query: query,
                            selection: selection, sections: sections, title: pageTitle))
         currentSource = source
@@ -101,6 +127,7 @@ final class SearchCoordinator {
     /// 返回上一层：恢复快照，不重新搜索
     func pop() {
         guard let frame = stack.popLast() else { return }
+        navDirection = .pop
         searchTask?.cancel()
         providerTasks.forEach { $0.cancel() }
         currentSource = frame.source
@@ -115,6 +142,7 @@ final class SearchCoordinator {
     /// 直接回到顶层（面板隐藏时用），恢复最早的 root 快照
     func popToRoot() {
         guard let root = stack.first else { return }
+        navDirection = .pop
         searchTask?.cancel()
         providerTasks.forEach { $0.cancel() }
         stack.removeAll()
@@ -193,6 +221,21 @@ final class SearchCoordinator {
                     guard !Task.isCancelled else { return }
                     sections = items.isEmpty ? [] : [ResultSection(title: wp.sectionTitle, items: items)]
                     selection = flatItems.first?.id
+                    return
+                }
+                // `@` 分类浏览：罗列所有支持 @ 的 provider 入口（插件/系统命令等）
+                if q.trimmed.hasPrefix("@") {
+                    var acc: [(rank: Int, section: ResultSection)] = []
+                    for provider in snapshot {
+                        let atItems = await provider.atEntries(for: q)
+                        guard !atItems.isEmpty else { continue }
+                        acc.append((provider.sectionRank,
+                                    ResultSection(title: provider.sectionTitle, items: atItems)))
+                    }
+                    guard !Task.isCancelled else { return }
+                    acc.sort { $0.rank < $1.rank }
+                    sections = acc.map(\.section)
+                    selection = sections.first?.items.first?.id
                     return
                 }
                 // 明确算式等强意图只运行认领它的 Provider。否则每次输入都会让应用、

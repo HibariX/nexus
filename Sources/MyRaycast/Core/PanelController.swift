@@ -57,6 +57,8 @@ final class PanelController {
     }
 
     func show() {
+        coordinator.clearShutdown()
+        coordinator.notePanelShown()
         positionOnActiveScreen()
         coordinator.refresh()
         panel.makeKeyAndOrderFront(nil)
@@ -65,10 +67,23 @@ final class PanelController {
 
     func hide() {
         guard panel.isVisible else { return }
-        panel.orderOut(nil)
-        // 保留上一次的输入与结果，仅取消进行中的搜索；回到顶层，下次呼出总在 root
-        coordinator.cancelSearch()
-        coordinator.popToRoot()
+        // 开启「减少动态」时，跳过 CRT 关机动画，直接隐藏
+        if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+            panel.orderOut(nil)
+            coordinator.cancelSearch()
+            coordinator.popToRoot()
+            coordinator.clearShutdown()
+            return
+        }
+        // CRT 关机：先播 SwiftUI 退场动画（垂直收拢成亮线），动画结束后再真正隐藏
+        coordinator.beginShutdown()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.32) { [weak self] in
+            guard let self else { return }
+            self.panel.orderOut(nil)
+            self.coordinator.cancelSearch()
+            self.coordinator.popToRoot()
+            self.coordinator.clearShutdown()
+        }
     }
 
     private func positionOnActiveScreen() {

@@ -3,6 +3,8 @@ import SwiftUI
 struct ResultListView: View {
     @Bindable var coordinator: SearchCoordinator
     let executor: ActionExecutor
+    /// 首屏错峰入场窗口：true 之后出现的行立即显示（修复快速滚动跟不上）
+    @State private var revealed = false
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -16,8 +18,9 @@ struct ResultListView: View {
                             .padding(.top, 8)
                             .padding(.bottom, 2)
 
-                        ForEach(section.items) { item in
-                            ResultRow(item: item, isSelected: coordinator.selection == item.id)
+                        ForEach(Array(section.items.enumerated()), id: \.element.id) { index, item in
+                            ResultRow(item: item, index: index, revealed: revealed,
+                                      isSelected: coordinator.selection == item.id)
                                 .id(item.id)
                                 .onTapGesture {
                                     coordinator.selection = item.id
@@ -35,6 +38,11 @@ struct ResultListView: View {
                 }
             }
             .scrollIndicators(.hidden)
+            .onAppear {
+                // 给首屏错峰一个短暂窗口，之后滚出的行立即显示
+                guard !revealed else { return }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { revealed = true }
+            }
         }
     }
 }

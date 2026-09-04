@@ -3,9 +3,12 @@ import SwiftUI
 
 struct ResultRow: View {
     let item: ResultItem
+    let index: Int
+    let revealed: Bool
     let isSelected: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isHovered = false
+    @State private var appeared = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -42,12 +45,28 @@ struct ResultRow: View {
         .overlay {
             RoundedRectangle(cornerRadius: 8)
                 .strokeBorder(
-                    isSelected ? CyberpunkTheme.matrix.opacity(0.7) : .clear,
-                    lineWidth: 1
+                    isSelected
+                        ? AnyShapeStyle(
+                            LinearGradient(
+                                colors: [CyberpunkTheme.matrix, CyberpunkTheme.cyan],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        : AnyShapeStyle(Color.clear),
+                    lineWidth: isSelected ? 1.2 : 1
                 )
         }
         .contentShape(Rectangle())
         .onHover { isHovered = $0 }
+        // 错峰入场：罗列条目出现时逐行自下而上淡入
+        .opacity(appeared || reduceMotion ? 1 : 0)
+        .offset(y: reduceMotion ? 0 : (appeared ? 0 : 8))
+        .animation(
+            reduceMotion || revealed ? nil : .easeOut(duration: 0.3).delay(Double(index) * 0.03),
+            value: appeared
+        )
+        .onAppear { appeared = true }
         .animation(interactionAnimation, value: isHovered)
         .animation(interactionAnimation, value: isSelected)
     }

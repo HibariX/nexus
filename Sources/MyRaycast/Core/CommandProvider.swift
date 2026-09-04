@@ -84,8 +84,11 @@ protocol CommandProvider {
     /// 返回 true 表示该 Provider 已明确识别查询意图，无需再运行其他 Provider。
     func prefersExclusiveResults(for query: Query) -> Bool
     func results(for query: Query) async -> [ResultItem]
+    /// `@` 分类浏览：root 下 @ 或 @<前缀> 时罗列该 Provider 的入口。默认不参与。
+    func atEntries(for query: Query) async -> [ResultItem]
 }
 
 extension CommandProvider {
     func prefersExclusiveResults(for query: Query) -> Bool { false }
+    func atEntries(for query: Query) async -> [ResultItem] { [] }
 }

@@ -5,6 +5,8 @@ import SwiftUI
 struct WorkbenchGridView: View {
     @Bindable var coordinator: SearchCoordinator
     let executor: ActionExecutor
+    /// 首屏错峰入场窗口：true 之后出现的格子立即显示（修复快速滚动跟不上）
+    @State private var revealed = false
 
     private let columns = Array(
         repeating: GridItem(.flexible(), spacing: 16),
@@ -16,8 +18,9 @@ struct WorkbenchGridView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVGrid(columns: columns, spacing: 16) {
-                    ForEach(items) { item in
-                        WorkbenchCell(item: item, isSelected: coordinator.selection == item.id)
+                    ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                        WorkbenchCell(item: item, index: index, revealed: revealed,
+                                      isSelected: coordinator.selection == item.id)
                             .equatable()
                             .id(item.id)
                             .onTapGesture {
@@ -74,6 +77,11 @@ struct WorkbenchGridView: View {
                 .padding(20)
             }
             .scrollIndicators(.hidden)
+            .onAppear {
+                // 给首屏错峰一个短暂窗口，之后滚出的格子立即显示
+                guard !revealed else { return }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { revealed = true }
+            }
             .onChange(of: coordinator.selection) { _, newValue in
                 if let id = newValue {
                     proxy.scrollTo(id, anchor: .center)
@@ -111,13 +119,17 @@ struct WorkbenchGridView: View {
 
 private struct WorkbenchCell: View, Equatable {
     let item: ResultItem
+    let index: Int
+    let revealed: Bool
     let isSelected: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isHovered = false
+    @State private var pulsate = false
+    @State private var appeared = false
 
     // 只有 id 或选中态变化才重绘：selection 改变时未涉及的格子被跳过，不重取图标
     static func == (lhs: WorkbenchCell, rhs: WorkbenchCell) -> Bool {
-        lhs.item.id == rhs.item.id && lhs.isSelected == rhs.isSelected
+        lhs.item.id == rhs.item.id && lhs.index == rhs.index && lhs.revealed == rhs.revealed && lhs.isSelected == rhs.isSelected
     }
 
     var body: some View {
@@ -125,11 +137,13 @@ private struct WorkbenchCell: View, Equatable {
             IconView(source: item.icon)
                 .frame(width: 64, height: 64)
                 .scaleEffect(reduceMotion ? 1 : (isHovered ? 1.035 : 1))
-            Text(item.title)
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(CyberpunkTheme.text)
-                .lineLimit(1)
-                .truncationMode(.tail)
+            CyberpunkGlitchText(
+                text: item.title,
+                font: .system(size: 13, weight: .medium),
+                glitching: isSelected
+            )
+            .lineLimit(1)
+            .truncationMode(.tail)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 14)
@@ -141,16 +155,56 @@ private struct WorkbenchCell: View, Equatable {
         .overlay {
             RoundedRectangle(cornerRadius: 12)
                 .strokeBorder(
-                    isSelected ? CyberpunkTheme.matrix.opacity(0.78) : .clear,
-                    lineWidth: 1
+                    isSelected
+                        ? AnyShapeStyle(
+                            LinearGradient(
+                                colors: [CyberpunkTheme.matrix, CyberpunkTheme.cyan],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        : AnyShapeStyle(Color.clear),
+                    lineWidth: isSelected ? 1.4 : 1
                 )
         }
+        .overlay(alignment: .top) {
+            // 顶部霓虹灯管：仅选中时点亮，随呼吸明暗，模拟赛博灯光条
+            if isSelected {
+                Capsule()
+                    .fill(CyberpunkTheme.matrix.opacity(pulsate ? 0.9 : 0.65))
+                    .frame(height: 2)
+                    .padding(.horizontal, 16)
+                    .shadow(
+                        color: CyberpunkTheme.matrix.opacity(pulsate ? 0.55 : 0.35),
+                        radius: pulsate ? 7 : 4
+                    )
+            }
+        }
         .shadow(
-            color: isSelected ? CyberpunkTheme.matrix.opacity(0.17) : .clear,
-            radius: 10
+            color: isSelected
+                ? CyberpunkTheme.matrix.opacity(pulsate ? 0.34 : 0.18)
+                : (isHovered ? CyberpunkTheme.cyan.opacity(0.16) : .clear),
+            radius: isSelected ? 12 : 10
         )
+        // 错峰入场：应用列表出现时逐格自下而上淡入 + 轻微放大
+        .opacity(appeared || reduceMotion ? 1 : 0)
+        .offset(y: reduceMotion ? 0 : (appeared ? 0 : 12))
+        .scaleEffect(reduceMotion ? 1 : (appeared ? 1 : 0.92))
+        .animation(
+            reduceMotion || revealed ? nil : .easeOut(duration: 0.3).delay(Double(index) * 0.03),
+            value: appeared
+        )
+        // revealed 翻转为 true 后，onAppear 设置的 appeared 立即生效，不再带延迟动画
         .contentShape(Rectangle())
         .onHover { isHovered = $0 }
+        .onAppear {
+            appeared = true
+            guard !reduceMotion else { return }
+            pulsate = false
+            withAnimation(.easeInOut(duration: 2.4).repeatForever(autoreverses: true)) {
+                pulsate = true
+            }
+        }
         .animation(interactionAnimation, value: isHovered)
         .animation(interactionAnimation, value: isSelected)
         .accessibilityElement(children: .combine)

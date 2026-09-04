@@ -68,6 +68,57 @@ final class SystemCommandProvider: CommandProvider {
                   "disable sleep", "disablesleep", "keep awake", "caffeinate"]
     )
 
+    /// `@` / `@<前缀>` 分类浏览：罗列全部系统命令，或按 @ 后的前缀过滤。空 @ 即全览。
+    func atEntries(for query: Query) async -> [ResultItem] {
+        let filter = query.trimmed.dropFirst()
+            .trimmingCharacters(in: .whitespaces).lowercased()
+
+        let items: [ResultItem]
+        if filter.isEmpty {
+            // 空 @：罗列全部系统命令（不触发子进程读状态）
+            items = SystemCommand.allCases.map { command in
+                ResultItem(
+                    id: "sys:\(command.rawValue)",
+                    title: command.title,
+                    subtitle: nil,
+                    icon: .symbol(name: command.symbolName),
+                    score: 0,
+                    accessoryHint: "命令",
+                    action: .runSystem(command)
+                )
+            }
+        } else {
+            items = SystemCommand.allCases.compactMap { command -> ResultItem? in
+                guard let searchable = searchable[command],
+                      let score = searchable.score(for: filter) else { return nil }
+                return ResultItem(
+                    id: "sys:\(command.rawValue)",
+                    title: command.title,
+                    subtitle: nil,
+                    icon: .symbol(name: command.symbolName),
+                    score: score,
+                    accessoryHint: "命令",
+                    action: .runSystem(command)
+                )
+            }
+        }
+
+        // 仅当 @ 后有文本且命中「禁止休眠」才读状态（否则不触发子进程）
+        if !filter.isEmpty, let score = sleepDisabledSearchable.score(for: filter) {
+            let status = await SleepControl.readStatus()
+            return items + [ResultItem(
+                id: "sys:sleepDisabled",
+                title: "禁止休眠",
+                subtitle: SleepControl.subtitle(for: status),
+                icon: .symbol(name: status.sleepDisabled ? "moon.zzz.fill" : "moon.zzz"),
+                score: score,
+                accessoryHint: "⏎ 切换",
+                action: .toggleSleepDisabled
+            )]
+        }
+        return items
+    }
+
     func results(for query: Query) async -> [ResultItem] {
         let text = query.trimmed
         guard !text.isEmpty else { return [] }

@@ -20,6 +20,28 @@ final class PluginHostProvider: CommandProvider {
         query.trimmed.hasPrefix("@")
     }
 
+    /// `@` / `@<前缀>` 分类浏览：罗列（匹配的）插件入口，回车压栈进入插件页。零子进程。
+    func atEntries(for query: Query) async -> [ResultItem] {
+        let lower = query.trimmed.dropFirst()   // 去掉 @
+            .trimmingCharacters(in: .whitespaces).lowercased()
+        var entries: [ResultItem] = []
+        for plugin in plugins {
+            let match = lower.isEmpty || plugin.keywords.contains { $0.lowercased().hasPrefix(lower) }
+                || plugin.name.lowercased().hasPrefix(lower)
+            guard match else { continue }
+            entries.append(ResultItem(
+                id: "plugin:entry:\(plugin.id)",
+                title: plugin.name,
+                subtitle: plugin.summary.isEmpty ? nil : plugin.summary,
+                icon: plugin.entryIcon,
+                score: 200 - Double(entries.count),
+                accessoryHint: "⏎ 进入",
+                action: .pushPage(pluginId: plugin.id, path: "", title: plugin.name)
+            ))
+        }
+        return entries
+    }
+
     /// root 页：`@` 触发，只列插件入口（回车压栈进入插件页）。零子进程。
     func results(for query: Query) async -> [ResultItem] {
         let text = query.trimmed
