@@ -48,6 +48,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsWindow: SettingsWindowController!
     private var windowManager: WindowManager!
     private var iPhoneMirrorController: IPhoneMirrorController!
+    private var pluginManager: PluginManager!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         settings = AppSettings()
@@ -70,10 +71,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         todoPanelController = TodoPanelController(store: todoStore)
         calculationHistory = CalculationHistory()
 
-        // 插件系统：首启把内置 demo 播种到用户插件目录，再扫描加载
-        seedBundledPlugins()
-        let loadedPlugins = PluginLoader.loadAll()
-        let pluginRunner = ExternalPluginRunner(plugins: loadedPlugins)
+        // 插件系统：管理器负责内置同步、迁移、启停与动态刷新
+        pluginManager = PluginManager()
+        let pluginRunner = ExternalPluginRunner(manager: pluginManager)
 
         // 动作执行
         let executor = ActionExecutor()
@@ -101,9 +101,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         coordinator.register(ClipboardProvider(store: clipboardStore))
         coordinator.register(FileSearchProvider())
         coordinator.register(TodoProvider(store: todoStore))
-        let pluginHost = PluginHostProvider(plugins: loadedPlugins, runner: pluginRunner)
+        let pluginHost = PluginHostProvider(manager: pluginManager, runner: pluginRunner)
         coordinator.register(pluginHost)
         coordinator.pluginHost = pluginHost  // 插件页结果来源
+        pluginManager.onPluginsChanged = { [weak coordinator, weak pluginManager] in
+            if let manager = pluginManager, coordinator?.isCurrentPluginUnavailable(manager: manager) == true {
+                coordinator?.popToRoot()
+            }
+            coordinator?.refresh()
+        }
 
         // 内置页面：输入 = 进入计算器页；Tab 进入别名编辑页
         coordinator.registerBuiltin(CalculatorPage(history: calculationHistory))
@@ -208,7 +214,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 },
                 onClipboardMaxChange: { [weak self] count in
                     self?.clipboardStore.maxItems = count
-                }
+                },
+                pluginManager: pluginManager
             ))
         }
 
@@ -237,28 +244,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         calculationHistory.flush()
     }
 
-    /// 首启把 app bundle 内置的 demo 插件拷到用户插件目录（已存在同名则跳过），并确保 entry 可执行。
-    private func seedBundledPlugins() {
-        let fm = FileManager.default
-        guard let resourcePath = Bundle.main.resourcePath else { return }
-        let src = URL(fileURLWithPath: resourcePath).appendingPathComponent("Plugins")
-        guard fm.fileExists(atPath: src.path),
-              let entries = try? fm.contentsOfDirectory(at: src, includingPropertiesForKeys: nil) else { return }
-
-        let dst = PluginLoader.rootDirectory
-        for entry in entries where entry.hasDirectoryPath {
-            let target = dst.appendingPathComponent(entry.lastPathComponent)
-            guard !fm.fileExists(atPath: target.path) else { continue }
-            try? fm.copyItem(at: entry, to: target)
-            // 确保入口脚本可执行（拷贝链路可能丢失执行位）
-            let manifestURL = target.appendingPathComponent("manifest.json")
-            if let data = try? Data(contentsOf: manifestURL),
-               let manifest = try? JSONDecoder().decode(PluginManifest.self, from: data) {
-                let entryPath = target.appendingPathComponent(manifest.entry).path
-                try? fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: entryPath)
-            }
-        }
-    }
 
     private func notifyHotkeyConflict(_ names: [String]) {
         let alert = NSAlert()

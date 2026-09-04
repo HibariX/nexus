@@ -11,6 +11,36 @@ struct PluginManifest: Codable {
     var summary: String?
 }
 
+enum PluginOrigin: String, Codable, Sendable {
+    case bundled
+    case user
+}
+
+enum PluginHealth: Equatable, Sendable {
+    case ready
+    case invalid(String)
+
+    var message: String? {
+        if case .invalid(let message) = self { return message }
+        return nil
+    }
+}
+
+struct PluginRecord: Identifiable, Equatable, Sendable {
+    let id: String
+    let manifest: PluginManifest?
+    let directory: URL
+    let origin: PluginOrigin
+    let health: PluginHealth
+    let isEnabled: Bool
+
+    var displayName: String { manifest?.name ?? directory.lastPathComponent }
+    var summary: String { manifest?.summary ?? health.message ?? "无法读取插件清单" }
+    var keywords: [String] { manifest?.keywords ?? [] }
+}
+
+extension PluginManifest: Equatable, Sendable {}
+
 /// 已加载并校验通过的插件：清单 + 其所在目录、可执行入口的绝对路径。
 struct LoadedPlugin {
     let manifest: PluginManifest

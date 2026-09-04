@@ -8,11 +8,11 @@ final class PluginHostProvider: CommandProvider {
     let sectionTitle = "插件"
     let sectionRank = 30
 
-    private let plugins: [LoadedPlugin]
+    private let manager: PluginManager
     private let runner: ExternalPluginRunner
 
-    init(plugins: [LoadedPlugin], runner: ExternalPluginRunner) {
-        self.plugins = plugins
+    init(manager: PluginManager, runner: ExternalPluginRunner) {
+        self.manager = manager
         self.runner = runner
     }
 
@@ -25,7 +25,7 @@ final class PluginHostProvider: CommandProvider {
         let lower = query.trimmed.dropFirst()   // 去掉 @
             .trimmingCharacters(in: .whitespaces).lowercased()
         var entries: [ResultItem] = []
-        for plugin in plugins {
+        for plugin in manager.enabledPlugins {
             let match = lower.isEmpty || plugin.keywords.contains { $0.lowercased().hasPrefix(lower) }
                 || plugin.name.lowercased().hasPrefix(lower)
             guard match else { continue }
@@ -49,7 +49,7 @@ final class PluginHostProvider: CommandProvider {
         let lower = String(text.dropFirst()).trimmingCharacters(in: .whitespaces).lowercased()
 
         var entries: [ResultItem] = []
-        for plugin in plugins {
+        for plugin in manager.enabledPlugins {
             let match = lower.isEmpty || plugin.keywords.contains { $0.lowercased().hasPrefix(lower) }
                 || plugin.name.lowercased().hasPrefix(lower)
             guard match else { continue }
@@ -71,7 +71,7 @@ final class PluginHostProvider: CommandProvider {
         let lower = text.lowercased()
         var entries: [ResultItem] = []
 
-        for plugin in plugins {
+        for plugin in manager.enabledPlugins {
             let keyword = plugin.keywords
                 .filter {
                     let candidate = $0.lowercased()
@@ -100,7 +100,7 @@ final class PluginHostProvider: CommandProvider {
 
     /// 插件页：跑该插件子进程，把返回 items 映射成结果行。
     func pageResults(pluginId: String, arg: String) async -> [ResultItem] {
-        guard let plugin = plugins.first(where: { $0.id == pluginId }) else { return [] }
+        guard let plugin = manager.runnablePlugin(id: pluginId) else { return [] }
         let items = await runner.query(plugin, arg: arg)
         return mapItems(items, plugin: plugin)
     }

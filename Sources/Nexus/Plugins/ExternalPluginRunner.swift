@@ -28,16 +28,16 @@ struct PluginOutcome: Decodable {
 /// 以子进程方式调用外部插件入口，用 JSON 通信。
 /// 一切 stdout 当数据解析；超时/非零退出/解析失败都被隔离为「无结果 / 默认 outcome」，不崩主程序。
 final class ExternalPluginRunner {
-    private let pluginsByID: [String: LoadedPlugin]
+    private let manager: PluginManager
 
     private let queryTimeout: TimeInterval = 4  // 子查询可能含网络展示（如额度）
     private let actionTimeout: TimeInterval = 15
 
-    init(plugins: [LoadedPlugin]) {
-        pluginsByID = Dictionary(plugins.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+    init(manager: PluginManager) {
+        self.manager = manager
     }
 
-    func plugin(id: String) -> LoadedPlugin? { pluginsByID[id] }
+    func plugin(id: String) -> LoadedPlugin? { manager.runnablePlugin(id: id) }
 
     /// 查询：`<entry> query "<arg>"` → items。失败返回 []。
     func query(_ plugin: LoadedPlugin, arg: String) async -> [PluginItem] {
@@ -50,7 +50,7 @@ final class ExternalPluginRunner {
 
     /// 动作：`<entry> action "<actionId>" "<payload>"` → outcome。失败返回默认（关面板）。
     func action(pluginId: String, actionId: String, payload: String) async -> PluginOutcome {
-        guard let plugin = pluginsByID[pluginId] else { return PluginOutcome() }
+        guard let plugin = manager.runnablePlugin(id: pluginId) else { return PluginOutcome() }
         guard let data = await Self.run(
             executable: plugin.entryURL, arguments: ["action", actionId, payload],
             cwd: plugin.directory, timeout: actionTimeout
@@ -97,7 +97,7 @@ final class ExternalPluginRunner {
         }
     }
 
-    /// GUI 应用继承的 PATH 往往很短，补上常见路径，保证 curl / python3 / hyswitch 等可被找到。
+    /// GUI 应用继承的 PATH 往往很短，补上常见路径，保证插件依赖的命令可被找到。
     private nonisolated static func augmentedEnvironment() -> [String: String] {
         var env = ProcessInfo.processInfo.environment
         let home = env["HOME"] ?? NSHomeDirectory()

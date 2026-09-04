@@ -93,6 +93,11 @@ final class SearchCoordinator {
         return ""
     }
 
+    func isCurrentPluginUnavailable(manager: PluginManager) -> Bool {
+        guard case .plugin(let id, _) = currentSource else { return false }
+        return manager.runnablePlugin(id: id) == nil
+    }
+
     /// 当前页面身份 key：跨页切换（push/pop）时用它触发转场动画
     var pageKey: String {
         switch currentSource {

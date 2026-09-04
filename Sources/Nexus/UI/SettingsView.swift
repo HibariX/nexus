@@ -9,6 +9,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     case clipboard
     case screenshot
     case windowManagement
+    case plugins
     case general
     case permissions
 
@@ -20,6 +21,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .clipboard: return "剪贴板"
         case .screenshot: return "截图"
         case .windowManagement: return "窗口管理"
+        case .plugins: return "插件"
         case .general: return "通用"
         case .permissions: return "隐私与权限"
         }
@@ -31,6 +33,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .clipboard: return "管理剪贴板历史的记录行为与容量。"
         case .screenshot: return "截图保存目录与 OCR 识别语言。"
         case .windowManagement: return "用全局快捷键快速整理其他应用的窗口。"
+        case .plugins: return "安装、启停和卸载 Nexus 插件。"
         case .general: return "启动与其他通用行为。"
         case .permissions: return "各功能所需的系统权限状态。"
         }
@@ -42,6 +45,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .clipboard: return "doc.on.clipboard.fill"
         case .screenshot: return "camera.viewfinder"
         case .windowManagement: return "rectangle.3.group.fill"
+        case .plugins: return "puzzlepiece.extension.fill"
         case .general: return "gearshape.fill"
         case .permissions: return "hand.raised.fill"
         }
@@ -53,6 +57,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .clipboard: return CyberpunkTheme.cyan
         case .screenshot: return CyberpunkTheme.amber
         case .windowManagement: return CyberpunkTheme.cyan
+        case .plugins: return CyberpunkTheme.amber
         case .general: return CyberpunkTheme.secondaryText
         case .permissions: return CyberpunkTheme.matrix
         }
@@ -99,6 +104,7 @@ struct SettingsView: View {
     var onRecordingStateChange: (Bool) -> Void
     var onClipboardEnabledChange: (Bool) -> Void
     var onClipboardMaxChange: (Int) -> Void
+    var pluginManager: PluginManager
 
     @State private var selection: SettingsSection = .hotkeys
 
@@ -149,6 +155,7 @@ struct SettingsView: View {
                     onImportRectangle: onImportRectangle,
                     onRecordingStateChange: onRecordingStateChange
                 )
+            case .plugins: PluginSettingsPane(manager: pluginManager)
             case .general: generalPane
             case .permissions: PermissionsPane()
             }

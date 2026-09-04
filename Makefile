@@ -23,14 +23,14 @@ bundle: build
 install-plugins:
 	mkdir -p "$(PLUGINS_DST)"
 	cp -R Plugins/* "$(PLUGINS_DST)/"
-	chmod +x "$(PLUGINS_DST)/hyswitch/hyswitch.sh"
 	chmod +x "$(PLUGINS_DST)/random-passwd/random-passwd.py"
 
 # TCC 权限按 app bundle 归责，必须经 LaunchServices（open）启动，
 # 直接跑裸二进制会把权限记到终端进程头上
 run: bundle
 	@pkill -x $(APP) 2>/dev/null || true
-	open $(BUNDLE)
+	@while pgrep -x $(APP) >/dev/null 2>&1; do sleep 0.1; done
+	open -n $(BUNDLE)
 
 test:
 	swift test
