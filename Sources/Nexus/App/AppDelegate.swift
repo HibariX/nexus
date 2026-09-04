@@ -49,6 +49,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var windowManager: WindowManager!
     private var iPhoneMirrorController: IPhoneMirrorController!
     private var pluginManager: PluginManager!
+    private var cleanupMode: CleanupModeController!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         settings = AppSettings()
@@ -75,8 +76,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         pluginManager = PluginManager()
         let pluginRunner = ExternalPluginRunner(manager: pluginManager)
 
+        // 清理模式：擦拭屏幕/键盘时临时屏蔽输入
+        cleanupMode = CleanupModeController()
+        cleanupMode.durationProvider = { [weak self] in self?.settings?.cleanupModeDuration ?? 60 }
+
         // 动作执行
         let executor = ActionExecutor()
+        executor.cleanupMode = cleanupMode
         executor.onAppLaunched = { [weak self] path in
             self?.appIndex.recordLaunch(path: path)
         }
@@ -96,7 +102,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let appLauncher = AppLauncherProvider(index: appIndex)
         coordinator.register(appLauncher)
         coordinator.workbenchProvider = appLauncher  // 空态工作台只跑此来源
-        coordinator.register(SystemCommandProvider())
+        coordinator.register(SystemCommandProvider(cleanupMode: cleanupMode))
         coordinator.register(SnipProvider(pinController: pinController))
         coordinator.register(ClipboardProvider(store: clipboardStore))
         coordinator.register(FileSearchProvider())
@@ -171,6 +177,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             notifyHotkeyConflict(conflicts)
         }
 
+        // 清理模式期间挂起全局热键：自身呼出键（如 ⌥空格）即便没被 tap 挡住也不会误触发
+        cleanupMode.suspendHotkeys = { [weak self] in self?.hotkeys?.suspendAll() }
+        cleanupMode.resumeHotkeys = { [weak self] in self?.hotkeys?.resumeAll() }
+
         statusBar = StatusBarController()
 
         // 设置窗口
@@ -238,6 +248,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        // 离开 App 时确保退出清理模式：不留遮罩窗、不残留挂起的热键、析构事件 tap
+        cleanupMode?.exit()
         clipboardStore.flush()
         appIndex.flush()
         // 待办无需 flush：EventKit 每次写入即时提交

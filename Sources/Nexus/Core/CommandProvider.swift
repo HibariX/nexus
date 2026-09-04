@@ -59,6 +59,8 @@ enum ResultAction: Sendable {
     case uninstallApp(path: String)
     /// 切换「禁止休眠」：异步 + 管理员权限执行，保持面板并刷新状态
     case toggleSleepDisabled
+    /// 启动「清理模式」：临时屏蔽键盘鼠标输入 N 秒，倒计时结束或按 Esc 恢复
+    case startCleanupMode
 }
 
 struct ResultItem: Identifiable, Sendable {

@@ -125,6 +125,10 @@ final class AppSettings {
     var todoReminderListID: String? {
         didSet { save() }
     }
+    /// 清理模式屏蔽输入的秒数
+    var cleanupModeDuration: Int {
+        didSet { save() }
+    }
 
     static let defaultLauncherHotkey = HotkeySpec(keyCode: UInt32(kVK_Space), carbonModifiers: UInt32(optionKey))
     static let defaultSnipHotkey = HotkeySpec(keyCode: UInt32(kVK_ANSI_A), carbonModifiers: UInt32(controlKey | cmdKey))
@@ -132,6 +136,8 @@ final class AppSettings {
     static let defaultTodoHotkey = HotkeySpec(keyCode: UInt32(kVK_ANSI_T), carbonModifiers: UInt32(optionKey))
     static let defaultAnnotateHotkey = HotkeySpec(keyCode: UInt32(kVK_ANSI_D), carbonModifiers: UInt32(optionKey))
     static let defaultWindowHotkeys = WindowAction.alternateDefaults
+
+    static let defaultCleanupModeDuration = 60
 
     static let defaultSnipSaveDirectory =
         FileManager.default.urls(for: .picturesDirectory, in: .userDomainMask).first?.path
@@ -167,6 +173,7 @@ final class AppSettings {
         var snipSaveDirectory: String?
         var ocrLanguages: [String]?
         var todoReminderListID: String?
+        var cleanupModeDuration: Int?
     }
 
     init() {
@@ -184,6 +191,7 @@ final class AppSettings {
         snipSaveDirectory = persisted?.snipSaveDirectory ?? Self.defaultSnipSaveDirectory
         ocrLanguages = persisted?.ocrLanguages ?? Self.defaultOCRLanguages
         todoReminderListID = persisted?.todoReminderListID
+        cleanupModeDuration = persisted?.cleanupModeDuration ?? Self.defaultCleanupModeDuration
     }
 
     private func save() {
@@ -199,7 +207,8 @@ final class AppSettings {
             clipboardMaxItems: clipboardMaxItems,
             snipSaveDirectory: snipSaveDirectory,
             ocrLanguages: ocrLanguages,
-            todoReminderListID: todoReminderListID
+            todoReminderListID: todoReminderListID,
+            cleanupModeDuration: cleanupModeDuration
         )
         if let data = try? JSONEncoder().encode(persisted) {
             try? data.write(to: Self.file, options: .atomic)

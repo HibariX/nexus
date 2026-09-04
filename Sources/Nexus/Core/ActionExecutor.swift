@@ -11,6 +11,8 @@ final class ActionExecutor {
     var calculationHistory: CalculationHistory?
     var pluginRunner: ExternalPluginRunner?
     var aliasStore: AliasStore?
+    /// 清理模式控制器（AppDelegate 注入）
+    var cleanupMode: CleanupModeController?
     /// 别名变更后回调（通常接 appIndex.refreshAliases）
     var onAliasesChanged: (() -> Void)?
     /// 插件动作要求刷新结果时回调（通常接 coordinator.refresh）
@@ -75,6 +77,12 @@ final class ActionExecutor {
                 _ = await SleepControl.toggle()
                 onReloadResults?()
             }
+
+        case .startCleanupMode:
+            // 面板已在 executeSelected 的 default 里先行收起（清理要盖满全屏）。
+            // toggle 兼「已激活则退出」的极端兜底。不调 onReloadResults：清理期间后台空跑搜索无意义，
+            // 倒计时更新由 controller 自身的 timer 驱动。
+            cleanupMode?.toggle()
 
         case .pinClipboardContent:
             pinController?.pinFromClipboard()

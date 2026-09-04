@@ -51,6 +51,13 @@ final class SystemCommandProvider: CommandProvider {
     let sectionTitle = "系统命令"
     let sectionRank = 20
 
+    /// 清理模式控制器：提供当前状态（subtitle）与启停；nil 表示未装配（测试/降级）。
+    private let cleanupMode: CleanupModeController?
+
+    init(cleanupMode: CleanupModeController? = nil) {
+        self.cleanupMode = cleanupMode
+    }
+
     /// 命令固定，标题+别名的可搜索封装预计算一次（含拼音/首字母，如「锁屏」← "sp"/"suoping"）
     private let searchable: [SystemCommand: SearchableText] = {
         var map: [SystemCommand: SearchableText] = [:]
@@ -66,6 +73,13 @@ final class SystemCommandProvider: CommandProvider {
         "禁止休眠",
         aliases: ["禁止休眠", "禁止睡眠", "防睡眠", "防休眠", "不休眠", "保持唤醒",
                   "disable sleep", "disablesleep", "keep awake", "caffeinate"]
+    )
+
+    /// 清理模式：同样是有状态、可能需权限的命令，单独生成（参照禁止休眠）。
+    private let cleanupSearchable = SearchableText(
+        "清理模式",
+        aliases: ["清理模式", "清洁模式", "擦屏幕", "擦拭屏幕", "擦键盘", "屏蔽输入",
+                  "cleanup mode", "clean mode", "clean screen", "clean"]
     )
 
     /// `@` / `@<前缀>` 分类浏览：罗列全部系统命令，或按 @ 后的前缀过滤。空 @ 即全览。
@@ -116,6 +130,19 @@ final class SystemCommandProvider: CommandProvider {
                 action: .toggleSleepDisabled
             )]
         }
+
+        // 仅当 @ 后有文本且命中「清理模式」才追加
+        if !filter.isEmpty, let controller = cleanupMode, let score = cleanupSearchable.score(for: filter) {
+            return items + [ResultItem(
+                id: "sys:cleanupMode",
+                title: "清理模式",
+                subtitle: CleanupMode.subtitle(for: controller.phase),
+                icon: .symbol(name: controller.isActive ? "shield.lefthalf.filled" : "shield.fill"),
+                score: score,
+                accessoryHint: "⏎ 启动",
+                action: .startCleanupMode
+            )]
+        }
         return items
     }
 
@@ -147,6 +174,19 @@ final class SystemCommandProvider: CommandProvider {
                 score: score,
                 accessoryHint: "⏎ 切换",
                 action: .toggleSleepDisabled
+            ))
+        }
+
+        // 仅当命中「清理模式」才追加（否则不依赖 controller 状态）。
+        if let controller = cleanupMode, let score = cleanupSearchable.score(for: text) {
+            items.append(ResultItem(
+                id: "sys:cleanupMode",
+                title: "清理模式",
+                subtitle: CleanupMode.subtitle(for: controller.phase),
+                icon: .symbol(name: controller.isActive ? "shield.lefthalf.filled" : "shield.fill"),
+                score: score,
+                accessoryHint: "⏎ 启动",
+                action: .startCleanupMode
             ))
         }
 

@@ -393,6 +393,22 @@ struct SettingsView: View {
                 .font(.caption)
                 .foregroundStyle(CyberpunkTheme.secondaryText)
         }
+
+        Section {
+            Picker("清理模式时长", selection: Binding(
+                get: { settings.cleanupModeDuration },
+                set: { settings.cleanupModeDuration = $0 }
+            )) {
+                Text("30 秒").tag(30)
+                Text("60 秒").tag(60)
+                Text("120 秒").tag(120)
+                Text("300 秒").tag(300)
+            }
+        } footer: {
+            Text("启动清理模式后临时屏蔽键盘与鼠标输入，倒计时结束或按 Esc 恢复。")
+                .font(.caption)
+                .foregroundStyle(CyberpunkTheme.secondaryText)
+        }
     }
 }
 
