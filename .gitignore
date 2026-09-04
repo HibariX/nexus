@@ -1,0 +1,9 @@
+# 系统文件
+.DS_Store
+
+# 生成的构建产物（AGENTS.md：treat .build/ and build/ as generated output）
+.build/
+build/
+
+# 运行时的持久化占位标记（内容为非语义的 marker，勿提交）
+PERSIST_RETRY.txt

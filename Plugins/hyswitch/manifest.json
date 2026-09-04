@@ -1,0 +1,8 @@
+{
+  "id": "hyswitch",
+  "name": "HySwitch",
+  "keywords": ["hy", "hyswitch", "节点"],
+  "icon": "network",
+  "summary": "节点切换 / Claude 额度",
+  "entry": "hyswitch.sh"
+}

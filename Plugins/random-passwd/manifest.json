@@ -1,0 +1,8 @@
+{
+  "id": "random-passwd",
+  "name": "随机密码",
+  "keywords": ["random-passwd", "passwd", "随机密码"],
+  "icon": "key.fill",
+  "summary": "安全生成密码并自动复制到剪贴板",
+  "entry": "random-passwd.py"
+}
