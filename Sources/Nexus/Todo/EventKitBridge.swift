@@ -33,6 +33,9 @@ final class EventKitBridge {
     /// nonisolated：错误文案要在 LocalizedError 的 nonisolated 实现里引用它
     nonisolated static let listTitle = "Nexus"
 
+    /// 旧版产品名「MyRaycast」的提醒列表标题，仅用于一次性迁移认领，勿删。
+    private static let legacyListTitle = "MyRaycast"
+
     private let store = EKEventStore()
     private let settings: AppSettings
 
@@ -76,9 +79,9 @@ final class EventKitBridge {
             return calendar
         }
 
-        // 迁移：旧版名为「MyRaycast」的提醒列表重命名为 Nexus，保留已存待办
+        // 迁移：旧版「MyRaycast」提醒列表重命名为 Nexus，保留已存待办
         if let legacy = existing.first(where: {
-            $0.title == "MyRaycast" && $0.allowsContentModifications
+            $0.title == Self.legacyListTitle && $0.allowsContentModifications
         }) {
             legacy.title = Self.listTitle
             do {
