@@ -336,8 +336,8 @@ private final class CleanupMaskView: NSView {
     override func scrollWheel(with event: NSEvent) {}
 
     override func draw(_ dirtyRect: NSRect) {
-        // 冷灰蓝夜空底（带一点点通透，营造「模式中」的氛围）
-        CyberpunkTheme.windowNSColor.withAlphaComponent(0.92).setFill()
+        // 深夜色底：近黑的冷蓝、高不透明，彻底盖住桌面（清理模式下越深越有「模式中」的沉浸感）
+        NSColor(calibratedRed: 0.02, green: 0.028, blue: 0.05, alpha: 0.97).setFill()
         bounds.fill()
 
         let center = NSPoint(x: bounds.midX, y: bounds.midY)

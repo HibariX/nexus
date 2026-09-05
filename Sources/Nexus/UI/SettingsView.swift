@@ -403,6 +403,7 @@ struct SettingsView: View {
                 Text("60 秒").tag(60)
                 Text("120 秒").tag(120)
                 Text("300 秒").tag(300)
+                Text("10 分钟").tag(600)
             }
         } footer: {
             Text("启动清理模式后临时屏蔽键盘与鼠标输入，倒计时结束或按 Esc 恢复。")
