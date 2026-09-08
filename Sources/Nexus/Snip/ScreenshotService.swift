@@ -20,10 +20,14 @@ final class ScreenshotService {
     /// 检查权限，未授权时弹引导。返回是否已授权。
     func ensurePermission() -> Bool {
         guard PermissionCenter.hasScreenCapture else {
-            PermissionCenter.requestScreenCapture()
+            // request 的返回值代表本次请求结果；不要继续使用请求前的旧状态。
+            let granted = PermissionCenter.requestScreenCapture()
+            if granted || PermissionCenter.hasScreenCapture {
+                return true
+            }
             PermissionCenter.showGuide(
                 title: "需要屏幕录制权限",
-                message: "截图功能需要屏幕录制权限。请在系统设置中允许 Nexus，授权后需重新启动应用。",
+                message: "截图功能需要屏幕录制权限。请在系统设置中允许\(PermissionCenter.appName)，授权后需重新启动应用。",
                 openSettings: PermissionCenter.openScreenCaptureSettings
             )
             return false

@@ -27,6 +27,8 @@ final class SearchCoordinator {
         }
     }
     private(set) var sections: [ResultSection] = []
+    /// 工作台空态顶部「应用建议」行（独立于 sections/flatItems，不参与网格键盘导航）
+    var workbenchSuggestions: [ResultItem] = []
     var selection: ResultItem.ID?
 
     var onDismiss: (() -> Void)?
@@ -169,8 +171,27 @@ final class SearchCoordinator {
 
     var flatItems: [ResultItem] { sections.flatMap(\.items) }
 
+    /// 键盘导航序列：工作台空态时把「建议」行（带前缀 id）拼在网格前，形成连续导航，
+    /// 方向键可在建议行与下方应用网格之间联动；其余场景回退为当前结果列表。
+    private var navigationItems: [ResultItem] {
+        guard isWorkbench else { return flatItems }
+        let suggested = workbenchSuggestions
+            .prefix(WorkbenchLayout.columns)
+            .map { item -> ResultItem in
+                // 复制一份改写 id：选中态落在建议行，不会误伤网格里与它同 id 的应用格子
+                ResultItem(id: "suggestion-\(item.id)", title: item.title, subtitle: item.subtitle,
+                           icon: item.icon, score: item.score, accessoryHint: item.accessoryHint,
+                           action: item.action)
+            }
+        return suggested + flatItems
+    }
+
     var selectedItem: ResultItem? {
-        flatItems.first { $0.id == selection }
+        guard let sel = selection else { return nil }
+        // 工作台「建议」行用独立前缀 id 标记选中（见 schedule 空 query 分支）。
+        // 统一从 navigationItems 查找：该序列里的建议项 id 即带前缀的副本，动作保持原样，
+        // 回车/点击都能正确执行（启动应用等）。
+        return navigationItems.first { $0.id == sel }
     }
 
     func reset() {
@@ -181,6 +202,7 @@ final class SearchCoordinator {
         pageTitle = ""
         query = ""
         sections = []
+        workbenchSuggestions = []
         selection = nil
     }
 
@@ -225,7 +247,10 @@ final class SearchCoordinator {
                     let items = await wp.results(for: q)
                     guard !Task.isCancelled else { return }
                     sections = items.isEmpty ? [] : [ResultSection(title: wp.sectionTitle, items: items)]
-                    selection = flatItems.first?.id
+                    workbenchSuggestions = wp.suggestions(limit: 6)
+                    // 默认选中「建议」行第一项。建议项用独立前缀 id，使选中高亮落在建议行，
+                    // 而不会落到网格里与它同 id 的应用格子（网格用原始 id 匹配，见 WorkbenchGridView）。
+                    selection = workbenchSuggestions.first.map { "suggestion-\($0.id)" } ?? flatItems.first?.id
                     return
                 }
                 // `@` 分类浏览：罗列所有支持 @ 的 provider 入口（插件/系统命令等）
@@ -305,7 +330,7 @@ final class SearchCoordinator {
     // MARK: - 键盘导航
 
     func moveSelection(by offset: Int) {
-        let items = flatItems
+        let items = navigationItems
         guard !items.isEmpty else { return }
         guard let current = selection,
               let index = items.firstIndex(where: { $0.id == current }) else {

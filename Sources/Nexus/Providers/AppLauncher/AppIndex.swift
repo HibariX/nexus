@@ -16,6 +16,8 @@ final class AppIndex {
     private var statsSaveGeneration = 0
 
     private var launchStats: [String: LaunchStat] = [:]  // path -> stat
+    /// path -> .app bundle 的 creationDate（近似安装时间），scan 时随 entries 一并读取缓存。
+    private var installedDates: [String: Date] = [:]
     private let statsFile = AppStorageDir.root.appendingPathComponent("launchCounts.json")
 
     /// 别名来源；scan 时把别名喂进 SearchableText，变更后经 refreshAliases 即时重建。
@@ -47,11 +49,12 @@ final class AppIndex {
         let generation = scanGeneration
         let aliases = aliasStore?.map ?? [:]
         scanTask = Task {
-            let found = await Task.detached(priority: .utility) {
+            let result = await Task.detached(priority: .utility) {
                 Self.scanEntries(aliases: aliases)
             }.value
             guard !Task.isCancelled, generation == scanGeneration else { return }
-            entries = found
+            entries = result.entries
+            installedDates = result.installDates
             scanTask = nil
         }
     }
@@ -61,10 +64,12 @@ final class AppIndex {
         scanTask = nil
         scanGeneration += 1
         lastScan = Date()
-        entries = Self.scanEntries(aliases: aliasStore?.map ?? [:])
+        let result = Self.scanEntries(aliases: aliasStore?.map ?? [:])
+        entries = result.entries
+        installedDates = result.installDates
     }
 
-    nonisolated private static func scanEntries(aliases: [String: [String]]) -> [AppEntry] {
+    nonisolated private static func scanEntries(aliases: [String: [String]]) -> (entries: [AppEntry], installDates: [String: Date]) {
         let fm = FileManager.default
         var found: [AppEntry] = []
         var seen = Set<String>()
@@ -80,7 +85,15 @@ final class AppIndex {
                                       match: SearchableText(name, aliases: aliases[path] ?? [])))
             }
         }
-        return found
+
+        // 同一遍读 .app 的 creationDate，作为「安装时间」的近似（供应用建议评分）
+        var installDates: [String: Date] = [:]
+        for entry in found {
+            if let date = try? fm.attributesOfItem(atPath: entry.path)[.creationDate] as? Date {
+                installDates[entry.path] = date
+            }
+        }
+        return (found, installDates)
     }
 
     /// 别名变更后即时生效：纯内存重建各 entry 的 match，不重扫目录、不动 lastScan
@@ -116,6 +129,30 @@ final class AppIndex {
         stat.lastLaunch = .now
         launchStats[path] = stat
         scheduleStatsSave()
+    }
+
+    // MARK: - 应用建议
+
+    /// 建议评分：frecency（启动频次 + 最近启动）叠加安装新鲜度。纯函数可单测。
+    /// 最近 60 天内安装/获取的应用加分更高，让「刚装的新应用」也能排进建议。
+    nonisolated static func suggestionScore(frecency: Double, installDate: Date?,
+                                            now: Date = .now) -> Double {
+        var score = frecency
+        if let installDate {
+            let days = max(now.timeIntervalSince(installDate) / 86400, 0)
+            score += 2.0 / (1.0 + days / 60.0)
+        }
+        return score
+    }
+
+    /// 取建议集合：综合「启动频次 + 最近启动 + 最近安装」排序后的前 limit 个应用。
+    func suggestions(limit: Int) -> [AppEntry] {
+        entries
+            .map { ($0, Self.suggestionScore(frecency: frecencyBoost(for: $0.path),
+                                             installDate: installedDates[$0.path])) }
+            .sorted { $0.1 > $1.1 }
+            .prefix(limit)
+            .map(\.0)
     }
 
     private func loadStats() {

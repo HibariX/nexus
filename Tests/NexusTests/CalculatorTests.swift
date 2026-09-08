@@ -40,6 +40,15 @@ import Testing
         #expect(try ExpressionParser.evaluate("10÷4") == 2.5)
     }
 
+    @Test func fullwidthChars() throws {
+        // 中文输入法下输入的全角括号/数字/运算符，应先归一化再解析
+        #expect(try ExpressionParser.evaluate("（10）*20") == 200)
+        #expect(try ExpressionParser.evaluate("（２＋３）*４") == 20)
+        #expect(try ExpressionParser.evaluate("１０÷４") == 2.5)
+        #expect(try ExpressionParser.evaluate("ｓｑｒｔ（１６）") == 4)
+        #expect(ExpressionParser.looksLikeExpression("（10）*20"))
+    }
+
     @Test func invalidInputThrows() {
         #expect(throws: (any Error).self) { try ExpressionParser.evaluate("3*") }
         #expect(throws: (any Error).self) { try ExpressionParser.evaluate("(2+3") }

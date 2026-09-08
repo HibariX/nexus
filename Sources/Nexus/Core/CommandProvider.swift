@@ -88,9 +88,12 @@ protocol CommandProvider {
     func results(for query: Query) async -> [ResultItem]
     /// `@` 分类浏览：root 下 @ 或 @<前缀> 时罗列该 Provider 的入口。默认不参与。
     func atEntries(for query: Query) async -> [ResultItem]
+    /// 建议集合（用于工作台空态顶部高亮行，如常用/最近安装）。默认不提供。
+    func suggestions(limit: Int) -> [ResultItem]
 }
 
 extension CommandProvider {
     func prefersExclusiveResults(for query: Query) -> Bool { false }
     func atEntries(for query: Query) async -> [ResultItem] { [] }
+    func suggestions(limit: Int) -> [ResultItem] { [] }
 }

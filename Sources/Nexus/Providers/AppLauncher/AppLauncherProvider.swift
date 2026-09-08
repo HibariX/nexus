@@ -32,6 +32,13 @@ final class AppLauncherProvider: CommandProvider {
         .map { $0 }
     }
 
+    /// 工作台空态顶部的「应用建议」：综合启动频次/最近启动/最近安装，取前 limit 个。
+    func suggestions(limit: Int) -> [ResultItem] {
+        index.scanIfStale()
+        return index.suggestions(limit: limit)
+            .map { makeItem($0, score: index.frecencyBoost(for: $0.path)) }
+    }
+
     private func makeItem(_ entry: AppEntry, score: Double) -> ResultItem {
         ResultItem(
             id: "app:\(entry.path)",

@@ -5,6 +5,13 @@ import EventKit
 /// 权限检测与引导统一收口
 enum PermissionCenter {
 
+    /// 权限提示使用 Bundle 中的正式产品名，避免更名后残留旧品牌文案。
+    static var appName: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String
+            ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String
+            ?? "Nexus"
+    }
+
     // MARK: - Accessibility（合成 ⌘V 需要）
 
     static var hasAccessibility: Bool {
@@ -28,7 +35,8 @@ enum PermissionCenter {
         CGPreflightScreenCaptureAccess()
     }
 
-    static func requestScreenCapture() {
+    @discardableResult
+    static func requestScreenCapture() -> Bool {
         CGRequestScreenCaptureAccess()
     }
 

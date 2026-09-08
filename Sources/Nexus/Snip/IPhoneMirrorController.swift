@@ -22,12 +22,14 @@ final class IPhoneMirrorController: NSObject, SCStreamDelegate {
             stop()
             return
         }
-        guard PermissionCenter.hasScreenCapture else {
-            PermissionCenter.requestScreenCapture()
-            PermissionCenter.showGuide(title: "需要屏幕录制权限",
-                                       message: "iPhone 镜像预览需要屏幕录制权限。授权后请重试。",
-                                       openSettings: PermissionCenter.openScreenCaptureSettings)
-            return
+        if !PermissionCenter.hasScreenCapture {
+            let granted = PermissionCenter.requestScreenCapture()
+            if !granted && !PermissionCenter.hasScreenCapture {
+                PermissionCenter.showGuide(title: "需要屏幕录制权限",
+                                           message: "iPhone 镜像预览需要屏幕录制权限。请在系统设置中允许\(PermissionCenter.appName)，授权后请重试。",
+                                           openSettings: PermissionCenter.openScreenCaptureSettings)
+                return
+            }
         }
         sourceWindowID = windowID
         sourcePID = pid

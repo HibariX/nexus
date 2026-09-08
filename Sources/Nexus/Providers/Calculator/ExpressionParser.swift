@@ -12,6 +12,26 @@ nonisolated enum ExpressionParser {
         case divisionByZero
     }
 
+    // MARK: - 全角归一化
+
+    /// 全角 → 半角：中文输入法下 `（`、`＊`、`０` 等会被输入成全角，导致 tokenize 抛错、
+    /// looksLikeExpression 也识别不出算式。把 U+FF01…U+FF5E（含全角括号/运算符/数字/字母）
+    /// 统一减 0xFEE0 映射到半角，全角空格 U+3000 换回普通空格。
+    private static func normalize(_ input: String) -> String {
+        var out = ""
+        for scalar in input.unicodeScalars {
+            switch scalar.value {
+            case 0xFF01...0xFF5E:
+                out.unicodeScalars.append(Unicode.Scalar(scalar.value - 0xFEE0)!)
+            case 0x3000:
+                out.append(" ")
+            default:
+                out.unicodeScalars.append(scalar)
+            }
+        }
+        return out
+    }
+
     // MARK: - Tokenizer
 
     private enum Token: Equatable {
@@ -163,7 +183,7 @@ nonisolated enum ExpressionParser {
 
     /// 解析并求值；输入不是合法算式时 throws
     static func evaluate(_ input: String) throws -> Double {
-        let tokens = try tokenize(input)
+        let tokens = try tokenize(normalize(input))
         guard !tokens.isEmpty else { throw ParseError.unexpectedEnd }
         // 纯数字（如 "42"）不当作算式，避免搜索数字文件名时误触发
         var parser = Parser(tokens: tokens)
@@ -174,15 +194,16 @@ nonisolated enum ExpressionParser {
 
     /// 快速预判：query 看起来像算式才值得尝试解析
     static func looksLikeExpression(_ input: String) -> Bool {
-        guard let first = input.first else { return false }
+        let normalized = normalize(input)
+        guard let first = normalized.first else { return false }
         guard first.isNumber || first == "(" || first == "-" || first == "." || first == "+" else {
             // 函数名开头：sin( sqrt( 等
-            let lowered = input.lowercased()
+            let lowered = normalized.lowercased()
             let functions = ["sin(", "cos(", "tan(", "sqrt(", "log(", "ln(", "abs(", "round(", "floor(", "ceil(", "pi", "e^"]
             return functions.contains { lowered.hasPrefix($0) }
         }
         // 纯数字串不算算式（避免干扰其他搜索）
-        return input.contains { "+-*/%^()×÷−".contains($0) }
+        return normalized.contains { "+-*/%^()×÷−".contains($0) }
     }
 
     /// 结果格式化：整数不带小数点，小数最多 10 位有效数字
