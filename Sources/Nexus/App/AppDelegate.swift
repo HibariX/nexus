@@ -121,7 +121,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         coordinator.registerBuiltin(CalculatorPage(history: calculationHistory))
         coordinator.registerBuiltin(AliasEditorPage(aliasStore: aliasStore))
 
-        panelController = PanelController(coordinator: coordinator, executor: executor)
+        panelController = PanelController(coordinator: coordinator, executor: executor, settings: settings)
 
         // 插件动作的收尾回调：刷新结果 / 关闭面板
         executor.onReloadResults = { coordinator.refresh() }

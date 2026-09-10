@@ -7,6 +7,7 @@ enum LauncherLayout {
 struct LauncherView: View {
     @Bindable var coordinator: SearchCoordinator
     let executor: ActionExecutor
+    let settings: AppSettings
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var passwordFormFocusRequest = 0
     @State private var appear = false
@@ -56,7 +57,8 @@ struct LauncherView: View {
 
             Group {
                 if coordinator.isWorkbench {
-                    WorkbenchGridView(coordinator: coordinator, executor: executor)
+                    WorkbenchGridView(coordinator: coordinator, executor: executor,
+                                      focusEffect: settings.focusEffect)
                 } else if coordinator.isRandomPasswordPluginPage {
                     RandomPasswordFormView(
                         initialArguments: coordinator.currentPluginPath,

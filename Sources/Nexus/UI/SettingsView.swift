@@ -410,6 +410,21 @@ struct SettingsView: View {
                 .font(.caption)
                 .foregroundStyle(CyberpunkTheme.secondaryText)
         }
+
+        Section {
+            Picker("选中特效", selection: Binding(
+                get: { settings.focusEffect },
+                set: { settings.focusEffect = $0 }
+            )) {
+                ForEach(FocusEffect.allCases) { effect in
+                    Text(effect.displayName).tag(effect)
+                }
+            }
+        } footer: {
+            Text("工作台选中项的 Focus 特效：「扫描线 + 故障」为 CRT 扫描线扫过；「跑马灯」为亮块绕边框追光；「静态描边」不动。系统开启「减少动态」时统一降级为静态描边。")
+                .font(.caption)
+                .foregroundStyle(CyberpunkTheme.secondaryText)
+        }
     }
 }
 
@@ -435,8 +450,9 @@ private struct PermissionsPane: View {
             permissionRow(
                 name: "粘贴板",
                 granted: nil,
-                detail: "读取剪贴板内容（macOS 26 隐私机制，状态需在系统设置查看）",
-                openSettings: PermissionCenter.openPasteboardSettings
+                detail: "读取剪贴板内容。macOS 26 隐私机制无公开状态接口，无法自动检测；点击「立即请求授权」拉起系统授权",
+                openSettings: PermissionCenter.openPasteboardSettings,
+                requestAccess: Self.requestPasteboardAccess
             )
         } footer: {
             HStack {
@@ -453,16 +469,28 @@ private struct PermissionsPane: View {
 
     @ViewBuilder
     private func permissionRow(name: String, granted: Bool?, detail: String,
-                               openSettings: @escaping () -> Void) -> some View {
+                               openSettings: @escaping () -> Void,
+                               requestAccess: (() -> Void)? = nil) -> some View {
         LabeledContent {
             if granted == true {
                 Label("已授权", systemImage: "checkmark.circle.fill")
                     .foregroundStyle(CyberpunkTheme.matrix)
                     .labelStyle(.titleAndIcon)
                     .font(.callout)
-            } else {
-                Button(granted == nil ? "打开设置" : "去授权") { openSettings() }
+            } else if granted == false {
+                Button("去授权") { openSettings() }
                     .controlSize(.regular)
+            } else {
+                // 状态未知（无公开检测接口，如 macOS 26 剪贴板权限）：优先提供「立即请求授权」
+                // 拉起系统授权窗，同时保留「打开设置」入口。
+                HStack(spacing: 8) {
+                    if let requestAccess {
+                        Button("立即请求授权") { requestAccess() }
+                            .controlSize(.regular)
+                    }
+                    Button("打开设置") { openSettings() }
+                        .controlSize(.small)
+                }
             }
         } label: {
             VStack(alignment: .leading, spacing: 2) {
@@ -471,5 +499,14 @@ private struct PermissionsPane: View {
             }
         }
         .padding(.vertical, 2)
+    }
+
+    /// 「立即请求授权」：触发一次剪贴板读取把系统授权窗拉起，并提示用户后续操作。
+    private static func requestPasteboardAccess() {
+        PermissionCenter.requestPasteboardAccess()
+        let alert = NSAlert()
+        alert.messageText = "已触发剪贴板授权请求"
+        alert.informativeText = "若系统弹出「允许 \(PermissionCenter.appName) 从其他 App 粘贴」，请选择允许；授权后可在「系统设置 → 隐私与安全性 → 从其他 App 粘贴」确认。\n\n若未弹出任何提示，说明当前系统尚未启用该隐私机制，剪贴板历史读取本身不受限。"
+        alert.runModal()
     }
 }

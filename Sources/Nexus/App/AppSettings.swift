@@ -80,6 +80,23 @@ struct HotkeySpec: Codable, Equatable {
     }
 }
 
+/// 工作台选中项的 Focus 特效风格
+enum FocusEffect: String, CaseIterable, Identifiable, Codable {
+    case scanline   // 扫描线 + 故障
+    case marquee    // 跑马灯追光
+    case outline    // 静态霓虹描边
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .scanline: return "扫描线 + 故障"
+        case .marquee: return "跑马灯"
+        case .outline: return "静态描边"
+        }
+    }
+}
+
 /// 全局设置，settings.json 持久化
 @Observable
 final class AppSettings {
@@ -129,6 +146,10 @@ final class AppSettings {
     var cleanupModeDuration: Int {
         didSet { save() }
     }
+    /// 工作台选中项的 Focus 特效风格
+    var focusEffect: FocusEffect {
+        didSet { save() }
+    }
 
     static let defaultLauncherHotkey = HotkeySpec(keyCode: UInt32(kVK_Space), carbonModifiers: UInt32(optionKey))
     static let defaultSnipHotkey = HotkeySpec(keyCode: UInt32(kVK_ANSI_A), carbonModifiers: UInt32(controlKey | cmdKey))
@@ -138,6 +159,7 @@ final class AppSettings {
     static let defaultWindowHotkeys = WindowAction.alternateDefaults
 
     static let defaultCleanupModeDuration = 60
+    static let defaultFocusEffect: FocusEffect = .scanline
 
     static let defaultSnipSaveDirectory =
         FileManager.default.urls(for: .picturesDirectory, in: .userDomainMask).first?.path
@@ -174,6 +196,7 @@ final class AppSettings {
         var ocrLanguages: [String]?
         var todoReminderListID: String?
         var cleanupModeDuration: Int?
+        var focusEffect: FocusEffect?
     }
 
     init() {
@@ -192,6 +215,7 @@ final class AppSettings {
         ocrLanguages = persisted?.ocrLanguages ?? Self.defaultOCRLanguages
         todoReminderListID = persisted?.todoReminderListID
         cleanupModeDuration = persisted?.cleanupModeDuration ?? Self.defaultCleanupModeDuration
+        focusEffect = persisted?.focusEffect ?? Self.defaultFocusEffect
     }
 
     private func save() {
@@ -208,7 +232,8 @@ final class AppSettings {
             snipSaveDirectory: snipSaveDirectory,
             ocrLanguages: ocrLanguages,
             todoReminderListID: todoReminderListID,
-            cleanupModeDuration: cleanupModeDuration
+            cleanupModeDuration: cleanupModeDuration,
+            focusEffect: focusEffect
         )
         if let data = try? JSONEncoder().encode(persisted) {
             try? data.write(to: Self.file, options: .atomic)

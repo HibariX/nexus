@@ -46,6 +46,16 @@ enum PermissionCenter {
 
     // MARK: - Pasteboard（macOS 26 新隐私机制）
 
+    /// 触发 macOS 26「从其他 App 粘贴」授权：该权限没有公开的「是否已授权」查询接口，
+    /// 系统只在 App 真正读取剪贴板**内容**时弹出授权窗。这里主动读一次把授权窗拉起；
+    /// 读取结果仅用于触发授权，不写入剪贴板历史。
+    @discardableResult
+    static func requestPasteboardAccess() -> Bool {
+        NSPasteboard.general.string(forType: .string)
+        NSPasteboard.general.data(forType: .png)
+        return true
+    }
+
     static func openPasteboardSettings() {
         openSettings("Privacy_Pasteboard")
     }

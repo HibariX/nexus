@@ -13,6 +13,8 @@ private struct WorkbenchCellFrameKey: PreferenceKey {
 struct WorkbenchGridView: View {
     @Bindable var coordinator: SearchCoordinator
     let executor: ActionExecutor
+    /// 选中项的 Focus 特效风格（用户在设置里可选）
+    let focusEffect: FocusEffect
     /// 首屏错峰入场窗口：true 之后出现的格子立即显示（修复快速滚动跟不上）
     @State private var revealed = false
     /// 已布局格子的全局坐标 frame，用于判断选中项是否已在可视区（避免横挪相邻项触发无谓滚动）
@@ -36,7 +38,8 @@ struct WorkbenchGridView: View {
                     LazyVGrid(columns: columns, spacing: 16) {
                     ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                         WorkbenchCell(item: item, index: index, revealed: revealed,
-                                      isSelected: coordinator.selection == item.id)
+                                      isSelected: coordinator.selection == item.id,
+                                      effect: focusEffect)
                             .equatable()
                             .id(item.id)
                             .background(
@@ -149,7 +152,8 @@ struct WorkbenchGridView: View {
             LazyVGrid(columns: columns, spacing: 16) {
                 ForEach(items.prefix(WorkbenchLayout.columns)) { item in
                     WorkbenchCell(item: item, index: 0, revealed: true,
-                                  isSelected: coordinator.selection == "suggestion-\(item.id)")
+                                  isSelected: coordinator.selection == "suggestion-\(item.id)",
+                                  effect: focusEffect)
                         .id("suggestion-\(item.id)")
                         .onTapGesture {
                             // 建议项用独立前缀 id 选中，避免与网格同 id 应用格子抢高亮；
@@ -182,6 +186,7 @@ private struct WorkbenchCell: View, Equatable {
     let index: Int
     let revealed: Bool
     let isSelected: Bool
+    let effect: FocusEffect
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isHovered = false
     @State private var pulsate = false
@@ -189,7 +194,8 @@ private struct WorkbenchCell: View, Equatable {
 
     // 只有 id 或选中态变化才重绘：selection 改变时未涉及的格子被跳过，不重取图标
     static func == (lhs: WorkbenchCell, rhs: WorkbenchCell) -> Bool {
-        lhs.item.id == rhs.item.id && lhs.index == rhs.index && lhs.revealed == rhs.revealed && lhs.isSelected == rhs.isSelected
+        lhs.item.id == rhs.item.id && lhs.index == rhs.index && lhs.revealed == rhs.revealed
+            && lhs.isSelected == rhs.isSelected && lhs.effect == rhs.effect
     }
 
     var body: some View {
@@ -215,35 +221,21 @@ private struct WorkbenchCell: View, Equatable {
         .overlay {
             if isSelected {
                 if reduceMotion {
-                    // 减少动态：静态霓虹描边，不做流光
-                    RoundedRectangle(cornerRadius: 12)
-                        .strokeBorder(
-                            LinearGradient(
-                                colors: [CyberpunkTheme.matrix, CyberpunkTheme.cyan],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1.4
-                        )
+                    // 减少动态：统一降级为静态霓虹描边
+                    staticOutline
                 } else {
-                    NeonCometBorder(cornerRadius: 12)
+                    switch effect {
+                    case .marquee:
+                        NeonCometBorder(cornerRadius: 12)
+                    case .scanline:
+                        ScanlineFocusOverlay(cornerRadius: 12)
+                    case .outline:
+                        staticOutline
+                    }
                 }
             } else {
                 RoundedRectangle(cornerRadius: 12)
                     .strokeBorder(Color.clear, lineWidth: 1)
-            }
-        }
-        .overlay(alignment: .top) {
-            // 顶部霓虹灯管：仅选中时点亮，随呼吸明暗，模拟赛博灯光条
-            if isSelected {
-                Capsule()
-                    .fill(CyberpunkTheme.matrix.opacity(pulsate ? 0.9 : 0.65))
-                    .frame(height: 2)
-                    .padding(.horizontal, 16)
-                    .shadow(
-                        color: CyberpunkTheme.matrix.opacity(pulsate ? 0.55 : 0.35),
-                        radius: pulsate ? 7 : 4
-                    )
             }
         }
         .shadow(
@@ -278,6 +270,19 @@ private struct WorkbenchCell: View, Equatable {
         .accessibilityHint("点击打开，右键显示更多操作")
         .accessibilityAddTraits(.isButton)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    /// 静态霓虹描边（减少动态 / outline 风格共用）
+    private var staticOutline: some View {
+        RoundedRectangle(cornerRadius: 12)
+            .strokeBorder(
+                LinearGradient(
+                    colors: [CyberpunkTheme.matrix, CyberpunkTheme.cyan],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ),
+                lineWidth: 1.4
+            )
     }
 
     private var backgroundColor: Color {
@@ -341,5 +346,43 @@ private struct NeonCometBorder: View {
                 CyberpunkTheme.matrixBright,
                 style: StrokeStyle(lineWidth: 2.4, lineCap: .round, lineJoin: .round)
             )
+    }
+}
+
+/// 「扫描线 + 故障」Focus 特效：细霓虹描边打底 + 一条水平扫描线自上而下循环扫过，
+/// 配合 CyberpunkGlitchText 的文字故障色差，构成 CRT / glitch 风。
+/// 「减少动态」时由调用方降级为静态描边，本组件不自行管理。
+private struct ScanlineFocusOverlay: View {
+    var cornerRadius: CGFloat
+    /// 扫描线扫完一遍的时长
+    var duration: Double = 2.4
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1 / 60)) { context in
+            GeometryReader { geo in
+                let h = geo.size.height
+                let t = context.date.timeIntervalSinceReferenceDate
+                    .truncatingRemainder(dividingBy: duration) / duration
+                ZStack(alignment: .top) {
+                    // 静态霓虹描边打底
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .strokeBorder(CyberpunkTheme.matrix.opacity(0.85), lineWidth: 1.4)
+                    // 水平扫描亮带 + 光晕，自上而下循环
+                    Rectangle()
+                        .fill(
+                            LinearGradient(
+                                colors: [.clear, CyberpunkTheme.matrixBright, .clear],
+                                startPoint: .leading, endPoint: .trailing
+                            )
+                        )
+                        .frame(height: 2)
+                        .shadow(color: CyberpunkTheme.matrix.opacity(0.8), radius: 6)
+                        .offset(y: CGFloat(t) * h)
+                }
+                .frame(width: geo.size.width, height: h)
+                .mask(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            }
+        }
+        .allowsHitTesting(false)
     }
 }

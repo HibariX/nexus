@@ -8,7 +8,7 @@ final class PanelController {
 
     private static let panelSize = LauncherLayout.size
 
-    init(coordinator: SearchCoordinator, executor: ActionExecutor) {
+    init(coordinator: SearchCoordinator, executor: ActionExecutor, settings: AppSettings) {
         self.coordinator = coordinator
         self.executor = executor
 
@@ -32,7 +32,7 @@ final class PanelController {
         panel.isMovableByWindowBackground = true
         panel.becomesKeyOnlyIfNeeded = false
 
-        let rootView = LauncherView(coordinator: coordinator, executor: executor)
+        let rootView = LauncherView(coordinator: coordinator, executor: executor, settings: settings)
         panel.contentView = NSHostingView(rootView: rootView)
 
         coordinator.onDismiss = { [weak self] in self?.hide() }
