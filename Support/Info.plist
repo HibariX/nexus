@@ -4,6 +4,8 @@
 <dict>
 	<key>CFBundleDisplayName</key>
 	<string>Nexus</string>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>zh_CN</string>
 	<key>CFBundleExecutable</key>
 	<string>Nexus</string>
 	<key>CFBundleIconFile</key>

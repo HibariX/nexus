@@ -1,0 +1,5 @@
+/* Nexus 应用包的英文本地化资源。
+   与 zh-Hans.lproj 成对存在：英文系统按偏好选中 en，系统应用名仍解析为英文
+   （Finder、Calculator…），中文系统选中 zh-Hans，解析为本地化中文名。 */
+"CFBundleDisplayName" = "Nexus";
+"CFBundleName" = "Nexus";

@@ -16,6 +16,9 @@ bundle: build
 	cp .build/release/$(APP) $(BUNDLE)/Contents/MacOS/
 	cp Support/Info.plist $(BUNDLE)/Contents/
 	cp Support/AppIcon.icns $(BUNDLE)/Contents/Resources/
+	# .lproj 决定 bundle 的本地化上下文：没有它，FileManager.displayName 会把
+	# 系统应用解析成英文名（Finder 而非「访达」），启动器就搜不到中文名。
+	cp -R Support/zh-Hans.lproj Support/en.lproj $(BUNDLE)/Contents/Resources/
 	cp -R Plugins $(BUNDLE)/Contents/Resources/
 	codesign --force --sign "$(IDENTITY)" --identifier $(BUNDLE_ID) $(BUNDLE)
 

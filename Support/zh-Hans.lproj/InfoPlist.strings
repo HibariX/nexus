@@ -1,0 +1,7 @@
+/* Nexus 应用包的中文本地化资源。
+   它同时承担一个关键作用：只要 bundle 里存在 zh-Hans.lproj，Bundle.main 的
+   preferredLocalizations 才会包含 zh-Hans，FileManager.displayName(atPath:) 才会
+   把系统应用解析成中文名（访达、计算器、钥匙串访问…）。缺少它时，AppIndex
+   会把「Finder.app」当成名字，用户搜「访达」永远搜不到。 */
+"CFBundleDisplayName" = "Nexus";
+"CFBundleName" = "Nexus";
